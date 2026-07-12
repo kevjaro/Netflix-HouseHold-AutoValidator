@@ -3,5 +3,6 @@ email:
   login: "myemail@server.com"
   password: "mypassword"
   mailbox: "INBOX"
+  reconcileInterval: "5m"
 targetFrom: "info@account.netflix.com"
 targetSubject: "Important : comment mettre à jour votre foyer Netflix"

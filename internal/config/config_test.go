@@ -41,3 +41,36 @@ targetSubject: "Test Subject"
 		t.Errorf("Expected targetFrom 'info@test.com', got '%s'", cfg.TargetFrom)
 	}
 }
+
+func TestLoadDefaultsReconcileInterval(t *testing.T) {
+	t.Setenv("EMAIL_RECONCILE_INTERVAL", "")
+
+	path := writeTempConfig(t, `email:
+  imap: "imap.test.com:993"
+`)
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.Email.ReconcileInterval != "5m" {
+		t.Fatalf("ReconcileInterval = %q, want %q", cfg.Email.ReconcileInterval, "5m")
+	}
+}
+
+func TestLoadRejectsInvalidReconcileInterval(t *testing.T) {
+	path := writeTempConfig(t, `email:
+  reconcileInterval: "never"
+`)
+	if _, err := Load(path); err == nil {
+		t.Fatal("Load() expected an error for an invalid reconcile interval")
+	}
+}
+
+func writeTempConfig(t *testing.T, contents string) string {
+	t.Helper()
+	path := t.TempDir() + "/config.yaml"
+	if err := os.WriteFile(path, []byte(contents), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}

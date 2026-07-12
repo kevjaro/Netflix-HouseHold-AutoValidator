@@ -25,6 +25,7 @@ This application monitors an IMAP mailbox for Netflix emails containing househol
      login: "your-email@example.com"
      password: "your-email-password"
      mailbox: "INBOX"
+     reconcileInterval: "5m"
    targetFrom: "info@account.netflix.com"
    targetSubject: "Important : comment mettre à jour votre foyer Netflix"
 ```
@@ -56,6 +57,7 @@ go test ./...
 | EMAIL_LOGIN    | Email login      |
 | EMAIL_PASSWORD | Email password   |
 | EMAIL_MAILBOX  | Mailbox name     |
+| EMAIL_RECONCILE_INTERVAL | Periodic unseen search interval (default: `5m`) |
 | TARGET_FROM    | Expected sender  |
 | TARGET_SUBJECT | Expected subject |
 
@@ -73,6 +75,7 @@ docker run \
   -e EMAIL_IMAP=imap.example.com:993 \
   -e EMAIL_LOGIN=your-email@example.com \
   -e EMAIL_PASSWORD=your-password \
+  -e EMAIL_RECONCILE_INTERVAL=5m \
   -e TARGET_FROM=info@account.netflix.com \
   -e TARGET_SUBJECT="Important : comment mettre à jour votre foyer Netflix" \
   phd59fr/netflix-household-autovalidator
@@ -112,7 +115,7 @@ go build -o validator ./cmd/main.go
 ```
 
 ## 🏗️ Architecture
-- Event-driven flow based on IMAP IDLE (reacts to incoming emails)
+- Event-driven flow based on IMAP IDLE, backed by a periodic unseen-email reconciliation
 - Pipeline processing: fetch → parse → filter → handle → mark as seen
 - Clear separation between:
    - domain (`models`)
@@ -125,7 +128,7 @@ go build -o validator ./cmd/main.go
 
 ## 🔧 How It Works
 
-1. **Monitoring**: Uses IMAP IDLE to subscribe for unseen emails from last 15 minutes
+1. **Monitoring**: Uses IMAP IDLE for immediate updates and periodically searches for unseen emails from the last 15 minutes (every 5 minutes by default)
 2. **Filtering**: Checks email sender (`targetFrom`) and subject (`targetSubject`)
 3. **Parsing**: Extracts `update-primary-location` links from email body
 4. **Automation**: Opens the validation link in a headless browser and completes the confirmation

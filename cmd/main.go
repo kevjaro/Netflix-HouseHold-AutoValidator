@@ -28,6 +28,8 @@ func main() {
 	}
 
 	logging.Log.Info("Starting Netflix email verification process (IMAP IDLE mode)")
+	reconcileInterval, _ := time.ParseDuration(cfg.Email.ReconcileInterval)
+	logging.Log.Infof("Periodic unseen-email reconciliation enabled (interval: %s)", reconcileInterval)
 
 	// Start background cleanup for Rod temp directories
 	netflix.StartCleanup()
@@ -64,11 +66,19 @@ func main() {
 			continue
 		}
 
-		// Block until the server notifies us of new mail via IMAP IDLE
-		if err := client.WaitForNewMail(ctx); err != nil {
+		// IDLE remains the fast path. The deadline periodically interrupts it so
+		// the next loop performs a real UNSEEN search even if an update was lost.
+		waitCtx, cancelWait := context.WithTimeout(ctx, reconcileInterval)
+		err := client.WaitForNewMail(waitCtx)
+		cancelWait()
+		if err != nil {
+			if errors.Is(err, context.DeadlineExceeded) {
+				logging.Log.Debug("Periodic reconciliation interval elapsed")
+				continue
+			}
 			connected = false
 			_ = client.Close()
-			if errors.Is(err, context.Canceled) {
+			if errors.Is(err, context.Canceled) && ctx.Err() != nil {
 				logging.Log.Info("Shutting down gracefully")
 				return
 			}

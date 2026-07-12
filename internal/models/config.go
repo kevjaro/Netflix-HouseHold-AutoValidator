@@ -9,8 +9,9 @@ type Config struct {
 
 // EmailConfig represents IMAP email configuration
 type EmailConfig struct {
-	Imap     string `yaml:"imap"`
-	Login    string `yaml:"login"`
-	Password string `yaml:"password"`
-	MailBox  string `yaml:"mailbox"`
+	Imap              string `yaml:"imap"`
+	Login             string `yaml:"login"`
+	Password          string `yaml:"password"`
+	MailBox           string `yaml:"mailbox"`
+	ReconcileInterval string `yaml:"reconcileInterval"`
 }

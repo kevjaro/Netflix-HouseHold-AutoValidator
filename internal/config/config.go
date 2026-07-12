@@ -1,7 +1,9 @@
 package config
 
 import (
+	"fmt"
 	"os"
+	"time"
 
 	"netflix-household-validator/internal/models"
 
@@ -27,6 +29,14 @@ func Load(filepath string) (*models.Config, error) {
 	// Override with environment variables if set
 	overrideFromEnv(&cfg)
 
+	if cfg.Email.ReconcileInterval == "" {
+		cfg.Email.ReconcileInterval = "5m"
+	}
+	interval, err := time.ParseDuration(cfg.Email.ReconcileInterval)
+	if err != nil || interval <= 0 {
+		return nil, fmt.Errorf("invalid email reconcileInterval %q: must be a positive duration", cfg.Email.ReconcileInterval)
+	}
+
 	return &cfg, nil
 }
 
@@ -39,6 +49,7 @@ func overrideFromEnv(cfg *models.Config) {
 	setString(&cfg.Email.Login, "EMAIL_LOGIN")
 	setString(&cfg.Email.Password, "EMAIL_PASSWORD")
 	setString(&cfg.Email.MailBox, "EMAIL_MAILBOX")
+	setString(&cfg.Email.ReconcileInterval, "EMAIL_RECONCILE_INTERVAL")
 }
 
 // setString checks if the specified environment variable is set and not empty, and if so, assigns its value to the provided string pointer
