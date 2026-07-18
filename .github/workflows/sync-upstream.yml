@@ -32,7 +32,18 @@ jobs:
         run: git fetch https://github.com/PHD59fr/Netflix-HouseHold-AutoValidator.git main:refs/remotes/upstream/main
 
       - name: Merge upstream main
-        run: git merge --no-edit upstream/main
+        run: |
+          if git merge-base --is-ancestor upstream/main HEAD; then
+            echo "Already up to date."
+            exit 0
+          fi
+
+          git merge --no-commit --no-ff upstream/main
+
+          # Keep this fork's Actions configuration. The built-in GITHUB_TOKEN
+          # cannot push upstream changes beneath .github/workflows.
+          git restore --source=HEAD --staged --worktree -- .github/workflows
+          git commit --no-edit
 
       - name: Push when main changed
         run: |
