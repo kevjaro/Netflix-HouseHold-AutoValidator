@@ -130,8 +130,14 @@ func (rb *RodBrowser) attemptOpenLink(
 	}
 	defer func() { _ = page.Close() }()
 
-	if err := page.WaitLoad(); err != nil {
-		locallog.WithError(err).Warnf("Attempt %d: wait load failed (navigation may have been redirected)", attempt)
+	// Netflix's SPA can keep background network activity going well past the
+	// point where the confirm button is actually interactable, so an
+	// unbounded WaitLoad() can stall far longer than necessary (observed
+	// up to 80s+ in production). Bound it: racePageElements below already
+	// waits for the elements we actually care about, so this is just a
+	// best-effort head start, not a hard requirement.
+	if err := page.Timeout(8 * time.Second).WaitLoad(); err != nil {
+		locallog.WithError(err).Debugf("Attempt %d: wait load did not complete within 8s, proceeding anyway", attempt)
 	}
 
 	// Try to accept cookie banner if present

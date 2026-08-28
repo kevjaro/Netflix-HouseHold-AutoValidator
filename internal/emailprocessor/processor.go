@@ -15,6 +15,11 @@ import (
 // account for delays without processing stale emails.
 const EmailValidityWindow = 15 * time.Minute
 
+// browserAutomationTimeout is the IMAP connection read timeout used while
+// the browser automation step runs. It must comfortably exceed the worst
+// observed browser-flow duration (up to ~90s in production logs).
+const browserAutomationTimeout = 3 * time.Minute
+
 // ProcessingStats tracks email processing statistics for a cycle
 type ProcessingStats struct {
 	Total          int
@@ -63,8 +68,15 @@ func (p *Processor) ProcessEmail(uid uint32) (handled bool, ignored bool, err er
 		return false, false, nil
 	}
 
-	// Handle email with Netflix service (filters, browser automation)
+	// Handle email with Netflix service (filters, browser automation).
+	// This can legitimately take well over 30s (cold browser launch +
+	// Netflix's own page render time), during which the IMAP connection
+	// sits idle. Widen the connection's read timeout for the duration so
+	// go-imap's background reader doesn't tear down a perfectly healthy
+	// connection out from under us, then restore the normal timeout.
+	prevTimeout := p.imapClient.SetConnectionTimeout(browserAutomationTimeout)
 	handled = p.netflixService.HandleEmail(email)
+	p.imapClient.SetConnectionTimeout(prevTimeout)
 
 	// Mark as seen only if successfully handled
 	if handled {

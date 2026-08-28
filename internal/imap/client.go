@@ -133,6 +133,25 @@ func (c *StandardClient) MarkSeen(uid uint32) error {
 	return c.client.Store(seqSet, item, flags, nil)
 }
 
+// SetConnectionTimeout overrides the read timeout used by the underlying
+// go-imap client (including its background response reader, which keeps
+// reading even when no command is outstanding). It returns the previous
+// value so the caller can restore it later.
+//
+// This exists so callers can widen the timeout while a long-running,
+// non-IMAP step (e.g. browser automation) runs on the same goroutine:
+// otherwise go-imap's default 30s read deadline fires on the idle
+// connection and the server-perceived session is torn down, even though
+// nothing is actually wrong with it.
+func (c *StandardClient) SetConnectionTimeout(d time.Duration) time.Duration {
+	if c.client == nil {
+		return 0
+	}
+	prev := c.client.Timeout
+	c.client.Timeout = d
+	return prev
+}
+
 // Close logs out from the IMAP server and closes the connection. It returns an error if the logout operation fails. If there is no active connection, it simply returns nil.
 func (c *StandardClient) Close() error {
 	if c.client == nil {
