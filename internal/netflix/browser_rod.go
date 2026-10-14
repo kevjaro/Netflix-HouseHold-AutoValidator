@@ -191,7 +191,7 @@ func racePageElements(page *rod.Page, timeout time.Duration) (pageOutcome, error
 
 	_, err := page.Timeout(timeout).Race().
 		Element(`[data-uia="set-primary-location-action"]`).Handle(func(e *rod.Element) error {
-		if err := e.Click(proto.InputMouseButtonLeft, 1); err != nil {
+		if err := clickElement(e); err != nil {
 			return err
 		}
 		outcome = outcomeConfirmed
@@ -208,6 +208,19 @@ func racePageElements(page *rod.Page, timeout time.Duration) (pageOutcome, error
 		Do()
 
 	return outcome, err
+}
+
+// clickElement clicks e, preferring a DOM click over rod's synthetic mouse
+// click. rod's Click first waits for the element to be stable and clickable,
+// and on Netflix's confirm page that wait never completes (the button is
+// visible and unobstructed, but Click blocks until the context deadline).
+// A DOM click triggers the same React handler without those waits. If it
+// fails, fall back to the mouse click.
+func clickElement(e *rod.Element) error {
+	if _, err := e.Eval(`() => this.click()`); err == nil {
+		return nil
+	}
+	return e.Click(proto.InputMouseButtonLeft, 1)
 }
 
 // StartCleanup starts a background goroutine that cleans up old Rod temp directories
